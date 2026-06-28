@@ -1,0 +1,15 @@
+{
+  "name": "@nagarejs/core",
+  "version": "0.1.1",
+  "description": "Nagare behavior runtime core",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
