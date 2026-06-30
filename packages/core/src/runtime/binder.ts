@@ -318,3 +318,56 @@ export function bindAll() {
     if (name) bindElement(el as HTMLElement, name)
   })
 }
+
+// ── Auto-rebind on DOM changes ──────────────────────────────────────────────
+
+let mutationObserver: MutationObserver | null = null
+
+function bindIfSoul(el: Element) {
+  const name = el.getAttribute?.('data-soul')
+  if (name) bindElement(el as HTMLElement, name)
+}
+
+function unbindIfSoul(el: Element) {
+  if (el.hasAttribute?.('data-soul')) {
+    unbindSoul(el as HTMLElement)
+  }
+}
+
+function handleAddedNode(node: Node) {
+  if (node.nodeType !== 1) return
+  const el = node as Element
+  bindIfSoul(el)
+  el.querySelectorAll?.('[data-soul]').forEach(child => bindIfSoul(child))
+}
+
+function handleRemovedNode(node: Node) {
+  if (node.nodeType !== 1) return
+  const el = node as Element
+  unbindIfSoul(el)
+  el.querySelectorAll?.('[data-soul]').forEach(child => unbindIfSoul(child))
+}
+
+/**
+ * Starts watching the DOM for added/removed [data-soul] elements and
+ * automatically binds/unbinds them. Idempotent — calling it multiple
+ * times has no extra effect while already observing.
+ */
+export function observeMutations(root: Element | Document = document.body) {
+  if (mutationObserver) return
+  if (typeof MutationObserver === 'undefined') return // SSR-safe no-op
+
+  mutationObserver = new MutationObserver(mutations => {
+    mutations.forEach(mutation => {
+      mutation.addedNodes.forEach(handleAddedNode)
+      mutation.removedNodes.forEach(handleRemovedNode)
+    })
+  })
+
+  mutationObserver.observe(root, { childList: true, subtree: true })
+}
+
+export function stopObservingMutations() {
+  mutationObserver?.disconnect()
+  mutationObserver = null
+}

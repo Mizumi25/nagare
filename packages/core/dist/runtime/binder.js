@@ -1,6 +1,5 @@
 import { getSoul } from './registry.js';
 import { executeBehavior, executeLifecycle } from './executor.js';
-// Track listeners per element for cleanup
 const listenerMap = new WeakMap();
 function addListener(el, event, handler, options) {
     el.addEventListener(event, handler, options);
@@ -26,10 +25,8 @@ function bindElement(el, name) {
         console.warn(`Nagare: soul "${name}" not registered`);
         return;
     }
-    // cleanup existing listeners before rebinding
     unbindSoul(el);
     soul.domElement = el;
-    // mount default
     if (soul.default) {
         if (soul.default.tw) {
             el.classList.add(...soul.default.tw.classes.trim().split(/\s+/).filter(Boolean));
@@ -61,9 +58,7 @@ function bindElement(el, name) {
             addListener(el, 'click', () => executeBehavior(el, behavior, soul, params));
         }
         if (behaviorName === 'tap') {
-            let startTime = 0;
-            let startX = 0;
-            let startY = 0;
+            let startTime = 0, startX = 0, startY = 0;
             const onStart = (e) => {
                 const t = e.touches?.[0] ?? e;
                 startTime = Date.now();
@@ -221,10 +216,69 @@ function bindElement(el, name) {
             cleanups.push(() => window.removeEventListener('resize', handler));
             listenerMap.set(el, cleanups);
         }
+        // ── NEW: onIdle ──
+        if (behaviorName === 'onIdle') {
+            const timeout = behavior.idleTimeout ?? 3000;
+            let timer = null;
+            let idle = false;
+            const resetIdle = () => {
+                if (idle) {
+                    idle = false;
+                    if (behavior.onEnd)
+                        executeLifecycle(el, behavior.onEnd, soul, params);
+                }
+                if (timer)
+                    clearTimeout(timer);
+                timer = setTimeout(() => {
+                    idle = true;
+                    executeBehavior(el, behavior, soul, params);
+                }, timeout);
+            };
+            const events = ['mousemove', 'keydown', 'touchstart', 'scroll', 'click'];
+            events.forEach(event => {
+                window.addEventListener(event, resetIdle, { passive: true });
+                const cleanups = listenerMap.get(el) ?? [];
+                cleanups.push(() => window.removeEventListener(event, resetIdle));
+                listenerMap.set(el, cleanups);
+            });
+            // start timer immediately
+            resetIdle();
+            const cleanups = listenerMap.get(el) ?? [];
+            cleanups.push(() => { if (timer)
+                clearTimeout(timer); });
+            listenerMap.set(el, cleanups);
+        }
+        // ── NEW: networkChanged ──
+        if (behaviorName === 'networkChanged') {
+            const onOnline = () => executeBehavior(el, behavior, soul, { ...params, online: true });
+            const onOffline = () => executeBehavior(el, behavior, soul, { ...params, online: false });
+            window.addEventListener('online', onOnline);
+            window.addEventListener('offline', onOffline);
+            const cleanups = listenerMap.get(el) ?? [];
+            cleanups.push(() => {
+                window.removeEventListener('online', onOnline);
+                window.removeEventListener('offline', onOffline);
+            });
+            listenerMap.set(el, cleanups);
+        }
+        // ── NEW: onOrientationChange ──
+        if (behaviorName === 'onOrientationChange') {
+            const handler = () => {
+                const orientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+                executeBehavior(el, behavior, soul, { ...params, orientation });
+            };
+            window.addEventListener('orientationchange', handler);
+            window.addEventListener('resize', handler);
+            const cleanups = listenerMap.get(el) ?? [];
+            cleanups.push(() => {
+                window.removeEventListener('orientationchange', handler);
+                window.removeEventListener('resize', handler);
+            });
+            listenerMap.set(el, cleanups);
+        }
     });
 }
 export function bindSoul(name) {
-    // Fix: bind ALL elements with this data-soul, not just first
     const elements = document.querySelectorAll(`[data-soul="${name}"]`);
     if (elements.length === 0) {
         console.warn(`Nagare: no element found with data-soul="${name}"`);
@@ -239,5 +293,53 @@ export function bindAll() {
         if (name)
             bindElement(el, name);
     });
+}
+// ── Auto-rebind on DOM changes ──────────────────────────────────────────────
+let mutationObserver = null;
+function bindIfSoul(el) {
+    const name = el.getAttribute?.('data-soul');
+    if (name)
+        bindElement(el, name);
+}
+function unbindIfSoul(el) {
+    if (el.hasAttribute?.('data-soul')) {
+        unbindSoul(el);
+    }
+}
+function handleAddedNode(node) {
+    if (node.nodeType !== 1)
+        return;
+    const el = node;
+    bindIfSoul(el);
+    el.querySelectorAll?.('[data-soul]').forEach(child => bindIfSoul(child));
+}
+function handleRemovedNode(node) {
+    if (node.nodeType !== 1)
+        return;
+    const el = node;
+    unbindIfSoul(el);
+    el.querySelectorAll?.('[data-soul]').forEach(child => unbindIfSoul(child));
+}
+/**
+ * Starts watching the DOM for added/removed [data-soul] elements and
+ * automatically binds/unbinds them. Idempotent — calling it multiple
+ * times has no extra effect while already observing.
+ */
+export function observeMutations(root = document.body) {
+    if (mutationObserver)
+        return;
+    if (typeof MutationObserver === 'undefined')
+        return; // SSR-safe no-op
+    mutationObserver = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            mutation.addedNodes.forEach(handleAddedNode);
+            mutation.removedNodes.forEach(handleRemovedNode);
+        });
+    });
+    mutationObserver.observe(root, { childList: true, subtree: true });
+}
+export function stopObservingMutations() {
+    mutationObserver?.disconnect();
+    mutationObserver = null;
 }
 //# sourceMappingURL=binder.js.map

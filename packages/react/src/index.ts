@@ -7,7 +7,9 @@ import {
   unbindAll,
   getSoul,
   clearRegistry,
-  destroySoul
+  destroySoul,
+  observeMutations,
+  stopObservingMutations
 } from '../../core/dist/index.js'
 
 import { parseCss } from '../../core/dist/parser/css.js'
@@ -186,6 +188,7 @@ export function useSoul(fn: (soul: (name: string) => SoulBuilder) => void) {
 
     fn(boundSoul)
     bindAll()
+    observeMutations() // auto-rebind newly added/removed [data-soul] elements
 
     return () => {
       // cleanup DOM listeners
@@ -241,4 +244,4 @@ export function preset(name: string, config: {
   return p
 }
 
-export { bindAll, unbindAll, getSoul, registerSoul, clearRegistry, destroySoul }
+export { bindAll, unbindAll, getSoul, registerSoul, clearRegistry, destroySoul, observeMutations, stopObservingMutations }

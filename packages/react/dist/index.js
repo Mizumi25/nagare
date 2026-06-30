@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { registerSoul, registerTemplate, registerPreset, bindAll, unbindAll, getSoul, clearRegistry, destroySoul } from '../../core/dist/index.js';
+import { registerSoul, registerTemplate, registerPreset, bindAll, unbindAll, getSoul, clearRegistry, destroySoul, observeMutations, stopObservingMutations } from '../../core/dist/index.js';
 import { parseCss } from '../../core/dist/parser/css.js';
 function buildLifecycle(config) {
     return {
@@ -95,6 +95,7 @@ export function useSoul(fn) {
         const boundSoul = (name) => createSoulBuilder(name, session);
         fn(boundSoul);
         bindAll();
+        observeMutations(); // auto-rebind newly added/removed [data-soul] elements
         return () => {
             // cleanup DOM listeners
             unbindAll();
@@ -138,5 +139,5 @@ export function preset(name, config) {
     registerPreset(name, p);
     return p;
 }
-export { bindAll, unbindAll, getSoul, registerSoul, clearRegistry, destroySoul };
+export { bindAll, unbindAll, getSoul, registerSoul, clearRegistry, destroySoul, observeMutations, stopObservingMutations };
 //# sourceMappingURL=index.js.map

@@ -1,4 +1,4 @@
-import { registerSoul, bindAll, unbindAll, getSoul, clearRegistry, destroySoul } from '../../core/dist/index.js';
+import { registerSoul, bindAll, unbindAll, getSoul, clearRegistry, destroySoul, observeMutations, stopObservingMutations } from '../../core/dist/index.js';
 import type { Template, Preset, State } from '../../core/dist/types.js';
 type PresetAttachment = {
     name: string;
@@ -90,5 +90,5 @@ export declare function preset(name: string, config: {
         js?: Function;
     };
 }): Preset;
-export { bindAll, unbindAll, getSoul, registerSoul, clearRegistry, destroySoul };
+export { bindAll, unbindAll, getSoul, registerSoul, clearRegistry, destroySoul, observeMutations, stopObservingMutations };
 //# sourceMappingURL=index.d.ts.map
