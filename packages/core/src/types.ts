@@ -65,15 +65,13 @@ export interface Preset {
 
 export type StateValue = boolean | number | string | null
 
-export interface State {
-  [key: string]: StateValue
-}
+export type State<T extends Record<string, StateValue> = Record<string, StateValue>> = T
 
-export interface SoulElement {
+export interface SoulElement<T extends State = State> {
   name: string
-  default?: Lifecycle & { state?: State }
+  default?: Lifecycle & { state?: T }
   behaviors: Map<string, Behavior>
-  state: State
+  state: T
   domElement?: HTMLElement
 }
 

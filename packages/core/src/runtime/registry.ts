@@ -1,4 +1,4 @@
-import type { NagareRegistry, SoulElement, Template, Preset } from '../types.js'
+import type { NagareRegistry, SoulElement, Template, Preset, State } from '../types.js'
 
 const registry: NagareRegistry = {
   souls: new Map(),
@@ -7,15 +7,15 @@ const registry: NagareRegistry = {
 }
 
 // SOULS
-export function registerSoul(name: string, soul: SoulElement) {
+export function registerSoul<T extends State = State>(name: string, soul: SoulElement<T>) {
   if (registry.souls.has(name)) {
     console.warn(`Nagare: soul "${name}" already registered — overwriting. Use unique soul names per page.`)
   }
-  registry.souls.set(name, soul)
+  registry.souls.set(name, soul as SoulElement)
 }
 
-export function getSoul(name: string): SoulElement | undefined {
-  return registry.souls.get(name)
+export function getSoul<T extends State = State>(name: string): SoulElement<T> | undefined {
+  return registry.souls.get(name) as SoulElement<T> | undefined
 }
 
 export function destroySoul(name: string) {

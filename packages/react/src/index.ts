@@ -40,51 +40,51 @@ type PresetAttachment = {
   mode?: 'merge' | 'override'
 }
 
-type BehaviorConfig = {
+type BehaviorConfig<T extends State = State> = {
   delay?: number
   idleTimeout?: number
   templates?: { name: string; mode?: 'merge' | 'override' }[]
   presets?: (string | PresetAttachment)[]
-  onStart?: { tw?: string; css?: string; js?: Function }
-  onUpdate?: { tw?: string; css?: string; js?: Function }
-  onEnd?: { tw?: string; css?: string; js?: Function }
+  onStart?: { tw?: string; css?: string; js?: (this: { state: T; params: Record<string, any>; el: HTMLElement }) => void }
+  onUpdate?: { tw?: string; css?: string; js?: (this: { state: T; params: Record<string, any>; el: HTMLElement }) => void }
+  onEnd?: { tw?: string; css?: string; js?: (this: { state: T; params: Record<string, any>; el: HTMLElement }) => void }
 }
 
-type SoulBuilder = {
+type SoulBuilder<T extends State = State> = {
   default(config: {
     tw?: string
     css?: string
-    js?: Function
-    state?: State
-  }): SoulBuilder
-  behavior(name: string, config: BehaviorConfig): SoulBuilder
-  hover(config: BehaviorConfig): SoulBuilder
-  click(config: BehaviorConfig): SoulBuilder
-  press(config: BehaviorConfig): SoulBuilder
-  release(config: BehaviorConfig): SoulBuilder
-  focus(config: BehaviorConfig): SoulBuilder
-  blur(config: BehaviorConfig): SoulBuilder
-  scroll(config: BehaviorConfig): SoulBuilder
-  drag(config: BehaviorConfig): SoulBuilder
-  drop(config: BehaviorConfig): SoulBuilder
-  enter(config: BehaviorConfig): SoulBuilder
-  exit(config: BehaviorConfig): SoulBuilder
-  expand(config: BehaviorConfig): SoulBuilder
-  shrink(config: BehaviorConfig): SoulBuilder
-  lift(config: BehaviorConfig): SoulBuilder
-  fade(config: BehaviorConfig): SoulBuilder
-  rotate(config: BehaviorConfig): SoulBuilder
-  load(config: BehaviorConfig): SoulBuilder
-  reset(config: BehaviorConfig): SoulBuilder
-  onMount(config: BehaviorConfig): SoulBuilder
-  onVisible(config: BehaviorConfig): SoulBuilder
-  onInvisible(config: BehaviorConfig): SoulBuilder
-  tap(config: BehaviorConfig): SoulBuilder
-  longpress(config: BehaviorConfig): SoulBuilder
-  swipe(config: BehaviorConfig): SoulBuilder
-  onIdle(config: BehaviorConfig & { idleTimeout?: number }): SoulBuilder
-  networkChanged(config: BehaviorConfig): SoulBuilder
-  onOrientationChange(config: BehaviorConfig): SoulBuilder
+    js?: (this: { state: T; el: HTMLElement }) => void
+    state?: T
+  }): SoulBuilder<T>
+  behavior(name: string, config: BehaviorConfig<T>): SoulBuilder<T>
+  hover(config: BehaviorConfig<T>): SoulBuilder<T>
+  click(config: BehaviorConfig<T>): SoulBuilder<T>
+  press(config: BehaviorConfig<T>): SoulBuilder<T>
+  release(config: BehaviorConfig<T>): SoulBuilder<T>
+  focus(config: BehaviorConfig<T>): SoulBuilder<T>
+  blur(config: BehaviorConfig<T>): SoulBuilder<T>
+  scroll(config: BehaviorConfig<T>): SoulBuilder<T>
+  drag(config: BehaviorConfig<T>): SoulBuilder<T>
+  drop(config: BehaviorConfig<T>): SoulBuilder<T>
+  enter(config: BehaviorConfig<T>): SoulBuilder<T>
+  exit(config: BehaviorConfig<T>): SoulBuilder<T>
+  expand(config: BehaviorConfig<T>): SoulBuilder<T>
+  shrink(config: BehaviorConfig<T>): SoulBuilder<T>
+  lift(config: BehaviorConfig<T>): SoulBuilder<T>
+  fade(config: BehaviorConfig<T>): SoulBuilder<T>
+  rotate(config: BehaviorConfig<T>): SoulBuilder<T>
+  load(config: BehaviorConfig<T>): SoulBuilder<T>
+  reset(config: BehaviorConfig<T>): SoulBuilder<T>
+  onMount(config: BehaviorConfig<T>): SoulBuilder<T>
+  onVisible(config: BehaviorConfig<T>): SoulBuilder<T>
+  onInvisible(config: BehaviorConfig<T>): SoulBuilder<T>
+  tap(config: BehaviorConfig<T>): SoulBuilder<T>
+  longpress(config: BehaviorConfig<T>): SoulBuilder<T>
+  swipe(config: BehaviorConfig<T>): SoulBuilder<T>
+  onIdle(config: BehaviorConfig<T> & { idleTimeout?: number }): SoulBuilder<T>
+  networkChanged(config: BehaviorConfig<T>): SoulBuilder<T>
+  onOrientationChange(config: BehaviorConfig<T>): SoulBuilder<T>
 }
 
 // track which souls were registered in a given useSoul call
@@ -92,9 +92,9 @@ type SoulSession = {
   soulNames: string[]
 }
 
-function createSoulBuilder(soulName: string, session: SoulSession | null): SoulBuilder {
-  const addBehavior = (behaviorName: string, config: BehaviorConfig): SoulBuilder => {
-    const soulEl = getSoul(soulName)
+function createSoulBuilder<T extends State = State>(soulName: string, session: SoulSession | null): SoulBuilder<T> {
+  const addBehavior = (behaviorName: string, config: BehaviorConfig<T>): SoulBuilder<T> => {
+    const soulEl = getSoul<T>(soulName)
     if (!soulEl) {
       console.warn(`Nagare: soul "${soulName}" not registered yet. Call .default() before adding behaviors.`)
       return builder
@@ -126,12 +126,12 @@ function createSoulBuilder(soulName: string, session: SoulSession | null): SoulB
     return builder
   }
 
-  const builder: SoulBuilder = {
+  const builder: SoulBuilder<T> = {
     default(config) {
-      const soulEl: SoulElement = {
+      const soulEl: SoulElement<T> = {
         name: soulName,
         behaviors: new Map(),
-        state: config.state ?? {},
+        state: (config.state ?? {}) as T,
         default: {
           tw: config.tw ? { classes: config.tw } : undefined,
           css: config.css ? parseCss(config.css) : undefined,
@@ -139,7 +139,7 @@ function createSoulBuilder(soulName: string, session: SoulSession | null): SoulB
           state: config.state
         }
       }
-      registerSoul(soulName, soulEl)
+      registerSoul<T>(soulName, soulEl)
       // track in session for cleanup
       if (session && !session.soulNames.includes(soulName)) {
         session.soulNames.push(soulName)
@@ -180,11 +180,11 @@ function createSoulBuilder(soulName: string, session: SoulSession | null): SoulB
 }
 
 // ── useSoul — React hook with auto cleanup ────────────────────────────────────
-export function useSoul(fn: (soul: (name: string) => SoulBuilder) => void) {
+export function useSoul(fn: (soul: <T extends State = State>(name: string) => SoulBuilder<T>) => void) {
   useEffect(() => {
     const session: SoulSession = { soulNames: [] }
 
-    const boundSoul = (name: string) => createSoulBuilder(name, session)
+    const boundSoul = <T extends State = State>(name: string) => createSoulBuilder<T>(name, session)
 
     fn(boundSoul)
     bindAll()
@@ -200,8 +200,8 @@ export function useSoul(fn: (soul: (name: string) => SoulBuilder) => void) {
 }
 
 // ── Standalone soul() — for use outside useSoul ───────────────────────────────
-export function soul(name: string): SoulBuilder {
-  return createSoulBuilder(name, null)
+export function soul<T extends State = State>(name: string): SoulBuilder<T> {
+  return createSoulBuilder<T>(name, null)
 }
 
 // ── template ──────────────────────────────────────────────────────────────────

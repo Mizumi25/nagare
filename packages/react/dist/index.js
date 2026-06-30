@@ -42,7 +42,7 @@ function createSoulBuilder(soulName, session) {
             const soulEl = {
                 name: soulName,
                 behaviors: new Map(),
-                state: config.state ?? {},
+                state: (config.state ?? {}),
                 default: {
                     tw: config.tw ? { classes: config.tw } : undefined,
                     css: config.css ? parseCss(config.css) : undefined,

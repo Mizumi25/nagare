@@ -1,7 +1,7 @@
-import type { NagareRegistry, SoulElement, Template, Preset } from '../types.js';
+import type { NagareRegistry, SoulElement, Template, Preset, State } from '../types.js';
 declare const registry: NagareRegistry;
-export declare function registerSoul(name: string, soul: SoulElement): void;
-export declare function getSoul(name: string): SoulElement | undefined;
+export declare function registerSoul<T extends State = State>(name: string, soul: SoulElement<T>): void;
+export declare function getSoul<T extends State = State>(name: string): SoulElement<T> | undefined;
 export declare function destroySoul(name: string): void;
 export declare function registerTemplate(name: string, template: Template): void;
 export declare function getTemplate(name: string): Template | undefined;
