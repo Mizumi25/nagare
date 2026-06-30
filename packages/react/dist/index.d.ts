@@ -1,4 +1,4 @@
-import { registerSoul, bindAll, getSoul } from '../../core/dist/index.js';
+import { registerSoul, bindAll, unbindAll, getSoul, clearRegistry, destroySoul } from '../../core/dist/index.js';
 import type { Template, Preset, State } from '../../core/dist/types.js';
 type PresetAttachment = {
     name: string;
@@ -6,6 +6,7 @@ type PresetAttachment = {
 };
 type BehaviorConfig = {
     delay?: number;
+    idleTimeout?: number;
     templates?: {
         name: string;
         mode?: 'merge' | 'override';
@@ -59,7 +60,13 @@ type SoulBuilder = {
     tap(config: BehaviorConfig): SoulBuilder;
     longpress(config: BehaviorConfig): SoulBuilder;
     swipe(config: BehaviorConfig): SoulBuilder;
+    onIdle(config: BehaviorConfig & {
+        idleTimeout?: number;
+    }): SoulBuilder;
+    networkChanged(config: BehaviorConfig): SoulBuilder;
+    onOrientationChange(config: BehaviorConfig): SoulBuilder;
 };
+export declare function useSoul(fn: (soul: (name: string) => SoulBuilder) => void): void;
 export declare function soul(name: string): SoulBuilder;
 export declare function template(name: string, config: {
     tw?: string;
@@ -83,5 +90,5 @@ export declare function preset(name: string, config: {
         js?: Function;
     };
 }): Preset;
-export { bindAll, getSoul, registerSoul };
+export { bindAll, unbindAll, getSoul, registerSoul, clearRegistry, destroySoul };
 //# sourceMappingURL=index.d.ts.map

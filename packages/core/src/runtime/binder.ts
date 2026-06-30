@@ -2,7 +2,6 @@ import type { SoulElement } from '../types.js'
 import { getSoul } from './registry.js'
 import { executeBehavior, executeLifecycle } from './executor.js'
 
-// Track listeners per element for cleanup
 const listenerMap = new WeakMap<HTMLElement, (() => void)[]>()
 
 function addListener(
@@ -38,12 +37,9 @@ function bindElement(el: HTMLElement, name: string) {
     return
   }
 
-  // cleanup existing listeners before rebinding
   unbindSoul(el)
-
   soul.domElement = el
 
-  // mount default
   if (soul.default) {
     if (soul.default.tw) {
       el.classList.add(...soul.default.tw.classes.trim().split(/\s+/).filter(Boolean))
@@ -77,9 +73,7 @@ function bindElement(el: HTMLElement, name: string) {
     }
 
     if (behaviorName === 'tap') {
-      let startTime = 0
-      let startX = 0
-      let startY = 0
+      let startTime = 0, startX = 0, startY = 0
       const onStart = (e: Event) => {
         const t = (e as TouchEvent).touches?.[0] ?? (e as MouseEvent)
         startTime = Date.now()
@@ -238,11 +232,77 @@ function bindElement(el: HTMLElement, name: string) {
       cleanups.push(() => window.removeEventListener('resize', handler))
       listenerMap.set(el, cleanups)
     }
+
+    // ── NEW: onIdle ──
+    if (behaviorName === 'onIdle') {
+      const timeout = (behavior as any).idleTimeout ?? 3000
+      let timer: ReturnType<typeof setTimeout> | null = null
+      let idle = false
+
+      const resetIdle = () => {
+        if (idle) {
+          idle = false
+          if (behavior.onEnd) executeLifecycle(el, behavior.onEnd, soul, params)
+        }
+        if (timer) clearTimeout(timer)
+        timer = setTimeout(() => {
+          idle = true
+          executeBehavior(el, behavior, soul, params)
+        }, timeout)
+      }
+
+      const events = ['mousemove', 'keydown', 'touchstart', 'scroll', 'click']
+      events.forEach(event => {
+        window.addEventListener(event, resetIdle, { passive: true })
+        const cleanups = listenerMap.get(el) ?? []
+        cleanups.push(() => window.removeEventListener(event, resetIdle))
+        listenerMap.set(el, cleanups)
+      })
+
+      // start timer immediately
+      resetIdle()
+      const cleanups = listenerMap.get(el) ?? []
+      cleanups.push(() => { if (timer) clearTimeout(timer) })
+      listenerMap.set(el, cleanups)
+    }
+
+    // ── NEW: networkChanged ──
+    if (behaviorName === 'networkChanged') {
+      const onOnline = () => executeBehavior(el, behavior, soul, { ...params, online: true })
+      const onOffline = () => executeBehavior(el, behavior, soul, { ...params, online: false })
+
+      window.addEventListener('online', onOnline)
+      window.addEventListener('offline', onOffline)
+
+      const cleanups = listenerMap.get(el) ?? []
+      cleanups.push(() => {
+        window.removeEventListener('online', onOnline)
+        window.removeEventListener('offline', onOffline)
+      })
+      listenerMap.set(el, cleanups)
+    }
+
+    // ── NEW: onOrientationChange ──
+    if (behaviorName === 'onOrientationChange') {
+      const handler = () => {
+        const orientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait'
+        executeBehavior(el, behavior, soul, { ...params, orientation })
+      }
+
+      window.addEventListener('orientationchange', handler)
+      window.addEventListener('resize', handler)
+
+      const cleanups = listenerMap.get(el) ?? []
+      cleanups.push(() => {
+        window.removeEventListener('orientationchange', handler)
+        window.removeEventListener('resize', handler)
+      })
+      listenerMap.set(el, cleanups)
+    }
   })
 }
 
 export function bindSoul(name: string) {
-  // Fix: bind ALL elements with this data-soul, not just first
   const elements = document.querySelectorAll(`[data-soul="${name}"]`)
   if (elements.length === 0) {
     console.warn(`Nagare: no element found with data-soul="${name}"`)

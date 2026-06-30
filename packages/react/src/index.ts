@@ -1,9 +1,13 @@
+import { useEffect, useRef } from 'react'
 import {
   registerSoul,
   registerTemplate,
   registerPreset,
   bindAll,
-  getSoul
+  unbindAll,
+  getSoul,
+  clearRegistry,
+  destroySoul
 } from '../../core/dist/index.js'
 
 import { parseCss } from '../../core/dist/parser/css.js'
@@ -36,6 +40,7 @@ type PresetAttachment = {
 
 type BehaviorConfig = {
   delay?: number
+  idleTimeout?: number
   templates?: { name: string; mode?: 'merge' | 'override' }[]
   presets?: (string | PresetAttachment)[]
   onStart?: { tw?: string; css?: string; js?: Function }
@@ -75,18 +80,26 @@ type SoulBuilder = {
   tap(config: BehaviorConfig): SoulBuilder
   longpress(config: BehaviorConfig): SoulBuilder
   swipe(config: BehaviorConfig): SoulBuilder
+  onIdle(config: BehaviorConfig & { idleTimeout?: number }): SoulBuilder
+  networkChanged(config: BehaviorConfig): SoulBuilder
+  onOrientationChange(config: BehaviorConfig): SoulBuilder
 }
 
-function createSoulBuilder(soulName: string): SoulBuilder {
+// track which souls were registered in a given useSoul call
+type SoulSession = {
+  soulNames: string[]
+}
+
+function createSoulBuilder(soulName: string, session: SoulSession | null): SoulBuilder {
   const addBehavior = (behaviorName: string, config: BehaviorConfig): SoulBuilder => {
     const soulEl = getSoul(soulName)
     if (!soulEl) {
-      console.warn(`Nagare: soul "${soulName}" not registered yet`)
+      console.warn(`Nagare: soul "${soulName}" not registered yet. Call .default() before adding behaviors.`)
       return builder
     }
 
-    const resolvedPresets = (config.presets ?? []).map(p => 
-      typeof p === 'string' 
+    const resolvedPresets = (config.presets ?? []).map(p =>
+      typeof p === 'string'
         ? { name: p, mode: 'merge' as const }
         : { name: p.name, mode: p.mode ?? 'merge' as const }
     )
@@ -95,6 +108,9 @@ function createSoulBuilder(soulName: string): SoulBuilder {
       name: behaviorName,
       params: [],
       delay: config.delay,
+      ...(behaviorName === 'onIdle' && config.idleTimeout
+        ? { idleTimeout: config.idleTimeout } as any
+        : {}),
       templates: config.templates?.map(t => ({
         name: t.name,
         mode: t.mode ?? 'merge' as const
@@ -122,6 +138,10 @@ function createSoulBuilder(soulName: string): SoulBuilder {
         }
       }
       registerSoul(soulName, soulEl)
+      // track in session for cleanup
+      if (session && !session.soulNames.includes(soulName)) {
+        session.soulNames.push(soulName)
+      }
       return builder
     },
     behavior: addBehavior,
@@ -149,15 +169,39 @@ function createSoulBuilder(soulName: string): SoulBuilder {
     tap: (c) => addBehavior('tap', c),
     longpress: (c) => addBehavior('longpress', c),
     swipe: (c) => addBehavior('swipe', c),
+    onIdle: (c) => addBehavior('onIdle', c),
+    networkChanged: (c) => addBehavior('networkChanged', c),
+    onOrientationChange: (c) => addBehavior('onOrientationChange', c),
   }
 
   return builder
 }
 
-export function soul(name: string): SoulBuilder {
-  return createSoulBuilder(name)
+// ── useSoul — React hook with auto cleanup ────────────────────────────────────
+export function useSoul(fn: (soul: (name: string) => SoulBuilder) => void) {
+  useEffect(() => {
+    const session: SoulSession = { soulNames: [] }
+
+    const boundSoul = (name: string) => createSoulBuilder(name, session)
+
+    fn(boundSoul)
+    bindAll()
+
+    return () => {
+      // cleanup DOM listeners
+      unbindAll()
+      // cleanup registry for souls registered in this session
+      session.soulNames.forEach(name => destroySoul(name))
+    }
+  }, [])
 }
 
+// ── Standalone soul() — for use outside useSoul ───────────────────────────────
+export function soul(name: string): SoulBuilder {
+  return createSoulBuilder(name, null)
+}
+
+// ── template ──────────────────────────────────────────────────────────────────
 export function template(name: string, config: {
   tw?: string
   css?: string
@@ -173,6 +217,7 @@ export function template(name: string, config: {
   return t
 }
 
+// ── preset ────────────────────────────────────────────────────────────────────
 export function preset(name: string, config: {
   onStart?: { tw?: string; css?: string; js?: Function }
   onUpdate?: { tw?: string; css?: string; js?: Function }
@@ -196,4 +241,4 @@ export function preset(name: string, config: {
   return p
 }
 
-export { bindAll, getSoul, registerSoul }
+export { bindAll, unbindAll, getSoul, registerSoul, clearRegistry, destroySoul }

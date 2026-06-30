@@ -1,4 +1,5 @@
-import { registerSoul, registerTemplate, registerPreset, bindAll, getSoul } from '../../core/dist/index.js';
+import { useEffect } from 'react';
+import { registerSoul, registerTemplate, registerPreset, bindAll, unbindAll, getSoul, clearRegistry, destroySoul } from '../../core/dist/index.js';
 import { parseCss } from '../../core/dist/parser/css.js';
 function buildLifecycle(config) {
     return {
@@ -7,11 +8,11 @@ function buildLifecycle(config) {
         js: config.js ? { fn: config.js } : undefined
     };
 }
-function createSoulBuilder(soulName) {
+function createSoulBuilder(soulName, session) {
     const addBehavior = (behaviorName, config) => {
         const soulEl = getSoul(soulName);
         if (!soulEl) {
-            console.warn(`Nagare: soul "${soulName}" not registered yet`);
+            console.warn(`Nagare: soul "${soulName}" not registered yet. Call .default() before adding behaviors.`);
             return builder;
         }
         const resolvedPresets = (config.presets ?? []).map(p => typeof p === 'string'
@@ -21,6 +22,9 @@ function createSoulBuilder(soulName) {
             name: behaviorName,
             params: [],
             delay: config.delay,
+            ...(behaviorName === 'onIdle' && config.idleTimeout
+                ? { idleTimeout: config.idleTimeout }
+                : {}),
             templates: config.templates?.map(t => ({
                 name: t.name,
                 mode: t.mode ?? 'merge'
@@ -47,6 +51,10 @@ function createSoulBuilder(soulName) {
                 }
             };
             registerSoul(soulName, soulEl);
+            // track in session for cleanup
+            if (session && !session.soulNames.includes(soulName)) {
+                session.soulNames.push(soulName);
+            }
             return builder;
         },
         behavior: addBehavior,
@@ -74,12 +82,32 @@ function createSoulBuilder(soulName) {
         tap: (c) => addBehavior('tap', c),
         longpress: (c) => addBehavior('longpress', c),
         swipe: (c) => addBehavior('swipe', c),
+        onIdle: (c) => addBehavior('onIdle', c),
+        networkChanged: (c) => addBehavior('networkChanged', c),
+        onOrientationChange: (c) => addBehavior('onOrientationChange', c),
     };
     return builder;
 }
-export function soul(name) {
-    return createSoulBuilder(name);
+// ── useSoul — React hook with auto cleanup ────────────────────────────────────
+export function useSoul(fn) {
+    useEffect(() => {
+        const session = { soulNames: [] };
+        const boundSoul = (name) => createSoulBuilder(name, session);
+        fn(boundSoul);
+        bindAll();
+        return () => {
+            // cleanup DOM listeners
+            unbindAll();
+            // cleanup registry for souls registered in this session
+            session.soulNames.forEach(name => destroySoul(name));
+        };
+    }, []);
 }
+// ── Standalone soul() — for use outside useSoul ───────────────────────────────
+export function soul(name) {
+    return createSoulBuilder(name, null);
+}
+// ── template ──────────────────────────────────────────────────────────────────
 export function template(name, config) {
     const t = {
         name,
@@ -90,6 +118,7 @@ export function template(name, config) {
     registerTemplate(name, t);
     return t;
 }
+// ── preset ────────────────────────────────────────────────────────────────────
 export function preset(name, config) {
     const toLifecycle = (phase) => {
         if (!phase)
@@ -109,5 +138,5 @@ export function preset(name, config) {
     registerPreset(name, p);
     return p;
 }
-export { bindAll, getSoul, registerSoul };
+export { bindAll, unbindAll, getSoul, registerSoul, clearRegistry, destroySoul };
 //# sourceMappingURL=index.js.map
