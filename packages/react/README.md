@@ -48,13 +48,11 @@ npm install @nagarejs/react
 ```tsx
 "use client"
 
-import { useEffect } from "react"
-import { soul, bindAll } from "@nagarejs/react"
+import { useSoul, soul } from "@nagarejs/react"
 
 export default function Page() {
 
-  useEffect(() => {
-
+  useSoul((soul) => {
     soul("card")
       .default({
         tw: "flex items-center justify-center p-8 rounded-2xl bg-gray-900 text-white cursor-pointer",
@@ -81,10 +79,7 @@ export default function Page() {
           css: `transform: scale(1)`
         }
       })
-
-    bindAll()
-
-  }, [])
+  })
 
   return (
     <div data-soul="card">
@@ -93,6 +88,10 @@ export default function Page() {
   )
 }
 ```
+
+`useSoul()` handles everything for you — it binds your souls to the page, watches for new elements that show up later, and cleans up automatically when the component unmounts. Just remember: always call `.default()` first when defining a soul, that's what registers it.
+
+You'll usually import `soul` alongside `useSoul` too — it's handy when you need to reach a soul from outside the `useSoul` callback, like inside a separate event handler.
 
 ---
 
@@ -105,16 +104,13 @@ click       tap         longpress     swipe
 hover       press       release       drag
 scroll      resize      focus         blur
 enter       exit        onMount       onVisible
-onInvisible
+onInvisible onIdle      networkChanged
+onOrientationChange
 ```
 
-Behaviors with `onUpdate` (continuous):
+A few of these pass along extra details depending on what they detect — for example `swipe` tells you which direction, `onOrientationChange` tells you landscape or portrait, `networkChanged` tells you if you're back online. You can read these through `this.params` inside your `js` block, or use them directly in `@if`.
 
-```
-hover   scroll   drag   resize   press   focus
-```
-
-Everything else just uses `onStart` and `onEnd`.
+`onIdle` also takes an optional `idleTimeout` (in milliseconds, default 3000) if you want to control how long before it's considered idle.
 
 ---
 
@@ -192,10 +188,8 @@ preset("bouncy", {
 
 soul("button")
   .click({
-    presets: [
-      { name: "bouncy" },                    // merge by default
-      { name: "snap", mode: "override" }     // or override
-    ]
+    presets: ["bouncy"],                              // shorthand, merge by default
+    presets: [{ name: "snap", mode: "override" }]      // or be explicit
   })
 ```
 
@@ -258,7 +252,7 @@ Nagare connects to real DOM elements via `data-soul`. ✦
 <button data-soul="button">...</button>
 ```
 
-Always call `bindAll()` after defining your souls.
+Use `useSoul()` inside your component and it handles binding for you — no need to call `bindAll()` yourself.
 
 ---
 

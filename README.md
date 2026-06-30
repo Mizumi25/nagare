@@ -1,6 +1,16 @@
 # Nagare ✦
 
+**A behavior-first UI runtime.**
+
+Nagare gives behavior its own home — instead of scattering hover logic across CSS, click logic across handlers, animation across a library, and state across a store, Nagare keeps everything one interaction owns — its styles, its animation, its logic, its state — together, in one place, under one name.
+
+```bash
+npm install @nagarejs/react
+```
+
 ---
+
+## Why
 
 Frontend has everything figured out.
 
@@ -48,7 +58,8 @@ One behavior. One place. Everything it owns — right there. ✦
 ## Install
 
 ```bash
-npm install @nagarejs/react
+npm install @nagarejs/react    # React, Next.js, Remix, Astro, TanStack...
+npm install @nagarejs/core     # vanilla JS or build your own adapter
 ```
 
 ---
@@ -56,54 +67,93 @@ npm install @nagarejs/react
 ## How it works
 
 You define a **soul** — that's your element.
-You attach **behaviors** — those are your interactions.
+You attach **behaviors** — those are your detectors. They watch for something — a click, a hover, the page going idle, the network dropping — and fire when it happens.
 Each behavior has a **lifecycle** — start, update, end.
 Each lifecycle has **blocks** — tw, css, js.
 
-```js
-soul("button")
-  .default({
-    tw: "px-6 py-3 rounded-xl bg-indigo-600 text-white cursor-pointer",
-    css: `transition: all 0.2s ease`,
-    state: { pressed: false }
-  })
-  .click({
-    onStart: {
-      css: `transform: scale(0.96)`,
-      js: function(this: any) {
-        this.state.pressed = true
-      }
-    },
-    onEnd: {
-      css: `transform: scale(1)`,
-      js: function(this: any) {
-        this.state.pressed = false
-      }
-    }
-  })
+```
+soul          →   the element
+behavior      →   the detector
+lifecycle     →   onStart / onUpdate / onEnd
+blocks        →   tw / css / js
 ```
 
 Bind it to your HTML with `data-soul`. (⁠^⁠^⁠)
 
 ```html
-<button data-soul="button">Click me</button>
+<div data-soul="card">tap me ✦</div>
 ```
 
-Call `bindAll()` and Nagare does the rest.
+---
+
+## Quick look — React (⁠◕⁠ᴗ⁠◕⁠)
+
+```tsx
+"use client"
+
+import { useSoul, soul } from "@nagarejs/react"
+
+export default function Page() {
+
+  useSoul((soul) => {
+    soul("card")
+      .default({
+        tw: "flex items-center justify-center p-8 rounded-2xl bg-gray-900 text-white cursor-pointer",
+        css: `transition: all 0.3s ease`,
+        state: { clicked: false }
+      })
+      .click({
+        onStart: {
+          css: `
+            transform: scale(1.05)
+            @if clicked {
+              color: violet
+            }
+            @else {
+              color: white
+            }
+          `,
+          js: function(this: any) {
+            this.state.clicked = !this.state.clicked
+            console.log("hey (⁠^⁠^⁠)")
+          }
+        },
+        onEnd: {
+          css: `transform: scale(1)`
+        }
+      })
+  })
+
+  return (
+    <div data-soul="card">
+      tap me ✦
+    </div>
+  )
+}
+```
+
+`useSoul()` does all the wiring for you — it registers your souls, binds them to the page, watches for new elements that show up later, and cleans everything up automatically when the component unmounts. Always call `.default()` first when defining a soul — that's what registers it.
+
+You'll usually import `soul` alongside `useSoul` too — useful when you need to reach a soul from outside the `useSoul` callback, like inside a separate event handler.
 
 ---
 
 ## Behaviors
 
-These fire when the user or environment triggers them.
+These are detectors. They watch the user or the environment, and fire a lifecycle when something happens.
 
 ```
 click       tap         longpress     swipe
 hover       press       release       drag
 scroll      resize      focus         blur
 enter       exit        onMount       onVisible
-onInvisible
+onInvisible onIdle      networkChanged
+onOrientationChange
 ```
+
+A few of these hand you a little extra info depending on what they detect — `swipe` tells you which direction, `onOrientationChange` tells you landscape or portrait, `networkChanged` tells you if you're back online, `scroll` and `resize` tell you the current values, `drag` tells you the live position. You can read these through `this.params` inside your `js` block, or use them directly in `@if`.
+
+`onIdle` also takes an optional `idleTimeout` (in milliseconds, default 3000) if you want to control how long before it's considered idle.
 
 ---
 
@@ -131,7 +181,7 @@ css: `
 `
 ```
 
-Any JS expression works inside @if. State keys go in directly — no prefix needed.
+Any JS expression works inside `@if`. State keys go in directly — no prefix needed.
 
 ---
 
@@ -180,8 +230,8 @@ preset("bouncy", {
 
 soul("button")
   .click({
-    presets: [{ name: "bouncy" }],
-    presets: [{ name: "bouncy", mode: "override" }]
+    presets: ["bouncy"],                              // shorthand, merge by default
+    presets: [{ name: "bouncy", mode: "override" }]    // or be explicit
   })
 ```
 
@@ -255,6 +305,9 @@ Nagare owns the behavior. Your JSX stays readable. ✦
 npm install @nagarejs/react    # React, Next.js, Remix, Astro, TanStack...
 npm install @nagarejs/core     # vanilla JS or build your own adapter
 ```
+
+- `@nagarejs/core` — the runtime engine
+- `@nagarejs/react` — the React adapter
 
 ---
 
