@@ -2,6 +2,23 @@
   "name": "@nagarejs/react",
   "version": "0.1.9",
   "description": "Nagare React adapter",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mizumi25/nagare.git"
+  },
+  "homepage": "https://github.com/Mizumi25/nagare#readme",
+  "bugs": {
+    "url": "https://github.com/Mizumi25/nagare/issues"
+  },
+  "keywords": [
+    "nagare",
+    "behavior",
+    "ui",
+    "react",
+    "interaction",
+    "soul"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",

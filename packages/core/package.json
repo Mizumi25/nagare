@@ -1,7 +1,24 @@
 {
   "name": "@nagarejs/core",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Nagare behavior runtime core",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mizumi25/nagare.git"
+  },
+  "homepage": "https://github.com/Mizumi25/nagare#readme",
+  "bugs": {
+    "url": "https://github.com/Mizumi25/nagare/issues"
+  },
+  "keywords": [
+    "nagare",
+    "behavior",
+    "ui",
+    "core",
+    "interaction",
+    "soul"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
