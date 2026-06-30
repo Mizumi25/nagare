@@ -82,6 +82,44 @@ function SignalsPanel() {
       })
   })
 
+
+  // ── Logo entrance animations ──
+useSoul((soul) => {
+  // Loading screen logo
+  soul('loader-logo')
+    .default({ 
+      css: `opacity: 0; transform: scale(0.8) rotate(-10deg)`
+    })
+    .onMount({
+      delay: 100,
+      onStart: { 
+        css: `opacity: 1; transform: scale(1) rotate(0deg); transition: all 0.8s cubic-bezier(.16,1,.3,1)` 
+      }
+    })
+
+  // Nav logo
+  soul('nav-logo')
+    .default({ 
+      css: `opacity: 0; transform: translateX(-20px)`
+    })
+    .onMount({
+      delay: 50,
+      onStart: { 
+        css: `opacity: 1; transform: translateX(0px); transition: all 0.6s ease` 
+      }
+    })
+    .hover({
+      onStart: { 
+        css: `transform: rotate(15deg) scale(1.1); transition: transform 0.3s ease` 
+      },
+      onEnd: { 
+        css: `transform: rotate(0deg) scale(1); transition: transform 0.3s ease` 
+      }
+    })
+})
+
+  
+
   return (
     <div data-soul="signals-grid">
       <div data-soul="idle-box"></div>
