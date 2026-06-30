@@ -1,7 +1,11 @@
 export function parseCss(input) {
     const properties = {};
     const conditions = [];
-    const lines = input.split('\n').map(l => l.trim()).filter(Boolean);
+    // normalize — split by both newlines AND semicolons
+    const lines = input
+        .split(/\n|;/)
+        .map(l => l.trim())
+        .filter(Boolean);
     let i = 0;
     while (i < lines.length) {
         const line = lines[i];
@@ -33,14 +37,12 @@ function collectConditionalBlocks(lines, startIndex) {
             expression = line.slice(9).replace('{', '').trim();
         }
         else if (line.startsWith('@else')) {
-            // @else = all previous conditions are false
             expression = null;
         }
         else {
             break;
         }
         i++;
-        // collect block body
         const blockProps = {};
         while (i < lines.length && lines[i] !== '}') {
             const parsed = parseProp(lines[i]);
@@ -48,10 +50,8 @@ function collectConditionalBlocks(lines, startIndex) {
                 blockProps[parsed.prop] = parsed.value;
             i++;
         }
-        i++; // skip closing }
-        // build expression
+        i++;
         if (expression !== null) {
-            // for @else if, negate all previous expressions
             const fullExpression = previousExpressions.length > 0
                 ? previousExpressions.map(e => `!(${e})`).join(' && ') + ` && (${expression})`
                 : expression;
@@ -59,15 +59,12 @@ function collectConditionalBlocks(lines, startIndex) {
             previousExpressions.push(expression);
         }
         else {
-            // @else
             const fullExpression = previousExpressions.map(e => `!(${e})`).join(' && ');
             conditions.push({ expression: fullExpression, properties: blockProps });
             break;
         }
-        // skip whitespace lines between blocks
         while (i < lines.length && lines[i] === '')
             i++;
-        // check if next line continues the chain
         const next = lines[i];
         if (!next || (!next.startsWith('@else if') && !next.startsWith('@else'))) {
             break;

@@ -1,7 +1,20 @@
 import { getTemplate, getPreset } from './registry.js';
+// CSS keywords that should never be replaced by state values
+const CSS_KEYWORDS = new Set([
+    'auto', 'none', 'inherit', 'initial', 'unset', 'revert',
+    'normal', 'bold', 'italic', 'underline', 'block', 'inline',
+    'flex', 'grid', 'absolute', 'relative', 'fixed', 'sticky',
+    'hidden', 'visible', 'scroll', 'clip', 'nowrap', 'wrap',
+    'left', 'right', 'center', 'top', 'bottom', 'middle',
+    'solid', 'dashed', 'dotted', 'transparent', 'currentColor',
+    'pointer', 'default', 'grab', 'grabbing', 'text', 'move',
+    'ease', 'linear', 'both', 'forwards', 'backwards', 'infinite',
+    'row', 'column', 'start', 'end', 'stretch', 'baseline',
+    'uppercase', 'lowercase', 'capitalize', 'cover', 'contain',
+    'no-repeat', 'repeat', 'space', 'round', 'local', 'inset'
+]);
 function applyTw(el, classes) {
-    const list = classes.trim().split(/\s+/);
-    list.forEach(cls => el.classList.add(cls));
+    classes.trim().split(/\s+/).filter(Boolean).forEach(cls => el.classList.add(cls));
 }
 function applyCss(el, properties, state, params) {
     if (!properties)
@@ -15,15 +28,28 @@ function applyConditions(el, conditions, state, params) {
     if (!conditions)
         return;
     conditions.forEach((condition) => {
-        const result = evaluateExpression(condition.expression, state, params);
-        if (result)
+        if (evaluateExpression(condition.expression, state, params)) {
             applyCss(el, condition.properties, state, params);
+        }
     });
 }
 function resolveValue(value, state, params) {
     if (!value)
         return '';
-    return value.replace(/\$?(\w+)/g, (match, key) => {
+    // only replace $prefixed tokens OR bare tokens that are NOT css keywords
+    return value.replace(/\$(\w+)|(?<![#\w])([a-zA-Z_]\w*)(?![-(])/g, (match, dollarKey, bareKey) => {
+        const key = dollarKey || bareKey;
+        if (dollarKey) {
+            // $key — always replace
+            if (params[key] !== undefined)
+                return String(params[key]);
+            if (state[key] !== undefined)
+                return String(state[key]);
+            return match;
+        }
+        // bare key — only replace if not a CSS keyword
+        if (CSS_KEYWORDS.has(key))
+            return match;
         if (params[key] !== undefined)
             return String(params[key]);
         if (state[key] !== undefined)
@@ -34,7 +60,7 @@ function resolveValue(value, state, params) {
 function evaluateExpression(expression, state, params) {
     try {
         const context = { ...state, ...params };
-        const fn = new Function(...Object.keys(context), `return ${expression}`);
+        const fn = new Function(...Object.keys(context), `return !!(${expression})`);
         return fn(...Object.values(context));
     }
     catch {
@@ -64,14 +90,12 @@ export async function executeBehavior(el, behavior, soul, paramValues) {
     const delay = behavior.delay ?? 0;
     if (delay > 0)
         await new Promise(resolve => setTimeout(resolve, delay));
-    const resolvedPresets = behavior.presets.map(({ name, mode }) => ({
-        preset: getPreset(name),
-        mode
-    })).filter(p => p.preset);
-    const resolvedTemplates = behavior.templates.map(({ name, mode }) => ({
-        template: getTemplate(name),
-        mode
-    })).filter(t => t.template);
+    const resolvedPresets = behavior.presets
+        .map(({ name, mode }) => ({ preset: getPreset(name), mode }))
+        .filter(p => p.preset);
+    const resolvedTemplates = behavior.templates
+        .map(({ name, mode }) => ({ template: getTemplate(name), mode }))
+        .filter(t => t.template);
     // onStart
     resolvedPresets.forEach(({ preset }) => {
         if (preset.onStart)
@@ -82,7 +106,7 @@ export async function executeBehavior(el, behavior, soul, paramValues) {
     });
     if (behavior.onStart)
         executeLifecycle(el, behavior.onStart, soul, paramValues);
-    // onUpdate
+    // onUpdate — continuous behaviors
     if (behavior.onUpdate) {
         resolvedPresets.forEach(({ preset }) => {
             if (preset.onUpdate)
@@ -90,7 +114,7 @@ export async function executeBehavior(el, behavior, soul, paramValues) {
         });
         executeLifecycle(el, behavior.onUpdate, soul, paramValues);
     }
-    // onEnd
+    // onEnd — discrete behaviors after 300ms
     if (!behavior.onUpdate) {
         await new Promise(resolve => setTimeout(resolve, 300));
         resolvedPresets.forEach(({ preset }) => {

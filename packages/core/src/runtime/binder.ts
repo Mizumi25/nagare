@@ -2,26 +2,51 @@ import type { SoulElement } from '../types.js'
 import { getSoul } from './registry.js'
 import { executeBehavior, executeLifecycle } from './executor.js'
 
-export function bindSoul(name: string) {
-  const el = document.querySelector(`[data-soul="${name}"]`) as HTMLElement | null
+// Track listeners per element for cleanup
+const listenerMap = new WeakMap<HTMLElement, (() => void)[]>()
 
-  if (!el) {
-    console.warn(`Nagare: no element found with data-soul="${name}"`)
-    return
+function addListener(
+  el: HTMLElement,
+  event: string,
+  handler: EventListener,
+  options?: AddEventListenerOptions
+) {
+  el.addEventListener(event, handler, options)
+  const cleanups = listenerMap.get(el) ?? []
+  cleanups.push(() => el.removeEventListener(event, handler))
+  listenerMap.set(el, cleanups)
+}
+
+export function unbindSoul(el: HTMLElement) {
+  const cleanups = listenerMap.get(el)
+  if (cleanups) {
+    cleanups.forEach(fn => fn())
+    listenerMap.delete(el)
   }
+}
 
+export function unbindAll() {
+  document.querySelectorAll('[data-soul]').forEach(el => {
+    unbindSoul(el as HTMLElement)
+  })
+}
+
+function bindElement(el: HTMLElement, name: string) {
   const soul = getSoul(name)
   if (!soul) {
     console.warn(`Nagare: soul "${name}" not registered`)
     return
   }
 
+  // cleanup existing listeners before rebinding
+  unbindSoul(el)
+
   soul.domElement = el
 
   // mount default
   if (soul.default) {
     if (soul.default.tw) {
-      el.classList.add(...soul.default.tw.classes.trim().split(/\s+/))
+      el.classList.add(...soul.default.tw.classes.trim().split(/\s+/).filter(Boolean))
     }
     if (soul.default.css) {
       Object.entries(soul.default.css.properties).forEach(([prop, val]) => {
@@ -41,105 +66,109 @@ export function bindSoul(name: string) {
     const params: Record<string, any> = {}
 
     if (behaviorName === 'hover') {
-      el.addEventListener('mouseenter', () => executeBehavior(el, behavior, soul, params))
-      el.addEventListener('mouseleave', () => {
+      addListener(el, 'mouseenter', () => executeBehavior(el, behavior, soul, params))
+      addListener(el, 'mouseleave', () => {
         if (behavior.onEnd) executeLifecycle(el, behavior.onEnd, soul, params)
       })
     }
 
     if (behaviorName === 'click') {
-      el.addEventListener('click', () => executeBehavior(el, behavior, soul, params))
+      addListener(el, 'click', () => executeBehavior(el, behavior, soul, params))
     }
 
     if (behaviorName === 'tap') {
-      let touchStartTime = 0
-      let touchStartX = 0
-      let touchStartY = 0
-      el.addEventListener('touchstart', (e) => {
-        touchStartTime = Date.now()
-        touchStartX = e.touches[0].clientX
-        touchStartY = e.touches[0].clientY
-      }, { passive: true })
-      el.addEventListener('touchend', (e) => {
-        const elapsed = Date.now() - touchStartTime
-        const dx = Math.abs(e.changedTouches[0].clientX - touchStartX)
-        const dy = Math.abs(e.changedTouches[0].clientY - touchStartY)
-        // tap = quick touch under 200ms with minimal movement
+      let startTime = 0
+      let startX = 0
+      let startY = 0
+      const onStart = (e: Event) => {
+        const t = (e as TouchEvent).touches?.[0] ?? (e as MouseEvent)
+        startTime = Date.now()
+        startX = t.clientX
+        startY = t.clientY
+      }
+      const onEnd = (e: Event) => {
+        const t = (e as TouchEvent).changedTouches?.[0] ?? (e as MouseEvent)
+        const elapsed = Date.now() - startTime
+        const dx = Math.abs(t.clientX - startX)
+        const dy = Math.abs(t.clientY - startY)
         if (elapsed < 200 && dx < 10 && dy < 10) {
           executeBehavior(el, behavior, soul, params)
         }
-      })
+      }
+      addListener(el, 'touchstart', onStart as EventListener, { passive: true })
+      addListener(el, 'touchend', onEnd as EventListener)
     }
 
     if (behaviorName === 'longpress') {
       let timer: ReturnType<typeof setTimeout> | null = null
-      el.addEventListener('touchstart', (e) => {
+      const start = (e: Event) => {
         e.preventDefault()
-        timer = setTimeout(() => {
-          executeBehavior(el, behavior, soul, params)
-        }, 500)
-      }, { passive: false })
-      el.addEventListener('touchend', () => {
-        if (timer) clearTimeout(timer)
-      })
-      el.addEventListener('touchmove', () => {
-        if (timer) clearTimeout(timer)
-      })
+        timer = setTimeout(() => executeBehavior(el, behavior, soul, params), 500)
+      }
+      const cancel = () => { if (timer) clearTimeout(timer) }
+      addListener(el, 'touchstart', start as EventListener, { passive: false })
+      addListener(el, 'touchend', cancel)
+      addListener(el, 'touchmove', cancel)
     }
 
     if (behaviorName === 'swipe') {
-      let startX = 0
-      let startY = 0
-      el.addEventListener('touchstart', (e) => {
-        startX = e.touches[0].clientX
-        startY = e.touches[0].clientY
+      let startX = 0, startY = 0
+      addListener(el, 'touchstart', (e) => {
+        startX = (e as TouchEvent).touches[0].clientX
+        startY = (e as TouchEvent).touches[0].clientY
       }, { passive: true })
-      el.addEventListener('touchend', (e) => {
-        const dx = e.changedTouches[0].clientX - startX
-        const dy = e.changedTouches[0].clientY - startY
-        const absDx = Math.abs(dx)
-        const absDy = Math.abs(dy)
-        if (Math.max(absDx, absDy) < 30) return // too small
-        let direction = ''
-        if (absDx > absDy) {
-          direction = dx > 0 ? 'right' : 'left'
-        } else {
-          direction = dy > 0 ? 'down' : 'up'
-        }
+      addListener(el, 'touchend', (e) => {
+        const dx = (e as TouchEvent).changedTouches[0].clientX - startX
+        const dy = (e as TouchEvent).changedTouches[0].clientY - startY
+        const absDx = Math.abs(dx), absDy = Math.abs(dy)
+        if (Math.max(absDx, absDy) < 30) return
+        const direction = absDx > absDy
+          ? (dx > 0 ? 'right' : 'left')
+          : (dy > 0 ? 'down' : 'up')
         executeBehavior(el, behavior, soul, { ...params, direction })
       })
     }
 
     if (behaviorName === 'press') {
-      el.addEventListener('mousedown', () => {
+      addListener(el, 'mousedown', () => {
         if (behavior.onStart) executeLifecycle(el, behavior.onStart, soul, params)
       })
-      el.addEventListener('mouseup', () => {
+      addListener(el, 'mouseup', () => {
         if (behavior.onEnd) executeLifecycle(el, behavior.onEnd, soul, params)
       })
-      el.addEventListener('touchstart', (e) => {
+      addListener(el, 'touchstart', (e) => {
         e.preventDefault()
         if (behavior.onStart) executeLifecycle(el, behavior.onStart, soul, params)
       }, { passive: false })
-      el.addEventListener('touchend', () => {
+      addListener(el, 'touchend', () => {
         if (behavior.onEnd) executeLifecycle(el, behavior.onEnd, soul, params)
       })
     }
 
     if (behaviorName === 'release') {
-      el.addEventListener('mouseup', () => executeBehavior(el, behavior, soul, params))
-      el.addEventListener('touchend', () => executeBehavior(el, behavior, soul, params))
+      addListener(el, 'mouseup', () => executeBehavior(el, behavior, soul, params))
+      addListener(el, 'touchend', () => executeBehavior(el, behavior, soul, params))
     }
 
     if (behaviorName === 'focus') {
-      el.addEventListener('focus', () => executeBehavior(el, behavior, soul, params))
-      el.addEventListener('blur', () => {
+      addListener(el, 'focus', () => executeBehavior(el, behavior, soul, params))
+      addListener(el, 'blur', () => {
         if (behavior.onEnd) executeLifecycle(el, behavior.onEnd, soul, params)
       })
     }
 
     if (behaviorName === 'blur') {
-      el.addEventListener('blur', () => executeBehavior(el, behavior, soul, params))
+      addListener(el, 'blur', () => executeBehavior(el, behavior, soul, params))
+    }
+
+    if (behaviorName === 'enter') {
+      addListener(el, 'mouseenter', () => executeBehavior(el, behavior, soul, params))
+      addListener(el, 'touchstart', () => executeBehavior(el, behavior, soul, params))
+    }
+
+    if (behaviorName === 'exit') {
+      addListener(el, 'mouseleave', () => executeBehavior(el, behavior, soul, params))
+      addListener(el, 'touchend', () => executeBehavior(el, behavior, soul, params))
     }
 
     if (behaviorName === 'onMount') {
@@ -158,64 +187,74 @@ export function bindSoul(name: string) {
         })
       })
       observer.observe(el)
+      const cleanups = listenerMap.get(el) ?? []
+      cleanups.push(() => observer.disconnect())
+      listenerMap.set(el, cleanups)
     }
 
     if (behaviorName === 'scroll') {
-      window.addEventListener('scroll', () => {
-        const scrollY = window.scrollY
-        executeBehavior(el, behavior, soul, { ...params, scrollY })
-      })
+      const handler = () => {
+        executeBehavior(el, behavior, soul, { ...params, scrollY: window.scrollY })
+      }
+      window.addEventListener('scroll', handler, { passive: true })
+      const cleanups = listenerMap.get(el) ?? []
+      cleanups.push(() => window.removeEventListener('scroll', handler))
+      listenerMap.set(el, cleanups)
     }
 
     if (behaviorName === 'drag') {
-      el.addEventListener('dragstart', () => {
+      addListener(el, 'dragstart', () => {
         if (behavior.onStart) executeLifecycle(el, behavior.onStart, soul, params)
       })
-      el.addEventListener('dragend', () => {
+      addListener(el, 'dragend', () => {
         if (behavior.onEnd) executeLifecycle(el, behavior.onEnd, soul, params)
       })
-      el.addEventListener('touchstart', (e) => {
+      addListener(el, 'touchstart', (e) => {
         e.preventDefault()
         if (behavior.onStart) executeLifecycle(el, behavior.onStart, soul, params)
       }, { passive: false })
-      el.addEventListener('touchmove', (e) => {
+      addListener(el, 'touchmove', (e) => {
         e.preventDefault()
-        const touch = e.touches[0]
+        const touch = (e as TouchEvent).touches[0]
         if (behavior.onUpdate) executeLifecycle(el, behavior.onUpdate, soul, {
-          ...params,
-          x: touch.clientX,
-          y: touch.clientY
+          ...params, x: touch.clientX, y: touch.clientY
         })
       }, { passive: false })
-      el.addEventListener('touchend', () => {
+      addListener(el, 'touchend', () => {
         if (behavior.onEnd) executeLifecycle(el, behavior.onEnd, soul, params)
       })
     }
 
     if (behaviorName === 'resize') {
-      window.addEventListener('resize', () => {
-        const width = window.innerWidth
-        const height = window.innerHeight
-        executeBehavior(el, behavior, soul, { ...params, width, height })
-      })
-    }
-
-    if (behaviorName === 'enter') {
-      el.addEventListener('mouseenter', () => executeBehavior(el, behavior, soul, params))
-      el.addEventListener('touchstart', () => executeBehavior(el, behavior, soul, params))
-    }
-
-    if (behaviorName === 'exit') {
-      el.addEventListener('mouseleave', () => executeBehavior(el, behavior, soul, params))
-      el.addEventListener('touchend', () => executeBehavior(el, behavior, soul, params))
+      const handler = () => {
+        executeBehavior(el, behavior, soul, {
+          ...params,
+          width: window.innerWidth,
+          height: window.innerHeight
+        })
+      }
+      window.addEventListener('resize', handler)
+      const cleanups = listenerMap.get(el) ?? []
+      cleanups.push(() => window.removeEventListener('resize', handler))
+      listenerMap.set(el, cleanups)
     }
   })
+}
+
+export function bindSoul(name: string) {
+  // Fix: bind ALL elements with this data-soul, not just first
+  const elements = document.querySelectorAll(`[data-soul="${name}"]`)
+  if (elements.length === 0) {
+    console.warn(`Nagare: no element found with data-soul="${name}"`)
+    return
+  }
+  elements.forEach(el => bindElement(el as HTMLElement, name))
 }
 
 export function bindAll() {
   const elements = document.querySelectorAll('[data-soul]')
   elements.forEach(el => {
     const name = el.getAttribute('data-soul')
-    if (name) bindSoul(name)
+    if (name) bindElement(el as HTMLElement, name)
   })
 }

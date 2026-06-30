@@ -1,7 +1,3 @@
-// =========================================================
-// NAGARE REGISTRY
-// =========================================================
-
 import type { NagareRegistry, SoulElement, Template, Preset } from '../types.js'
 
 const registry: NagareRegistry = {
@@ -12,11 +8,18 @@ const registry: NagareRegistry = {
 
 // SOULS
 export function registerSoul(name: string, soul: SoulElement) {
+  if (registry.souls.has(name)) {
+    console.warn(`Nagare: soul "${name}" already registered — overwriting. Use unique soul names per page.`)
+  }
   registry.souls.set(name, soul)
 }
 
 export function getSoul(name: string): SoulElement | undefined {
   return registry.souls.get(name)
+}
+
+export function destroySoul(name: string) {
+  registry.souls.delete(name)
 }
 
 // TEMPLATES
@@ -35,6 +38,13 @@ export function registerPreset(name: string, preset: Preset) {
 
 export function getPreset(name: string): Preset | undefined {
   return registry.presets.get(name)
+}
+
+// CLEANUP — call on unmount
+export function clearRegistry() {
+  registry.souls.clear()
+  registry.templates.clear()
+  registry.presets.clear()
 }
 
 export { registry }
