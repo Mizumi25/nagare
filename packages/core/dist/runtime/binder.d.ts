@@ -9,4 +9,6 @@ export declare function bindAll(): void;
  */
 export declare function observeMutations(root?: Element | Document): void;
 export declare function stopObservingMutations(): void;
+export declare function bindSouls(names: string[]): void;
+export declare function unbindSouls(names: string[]): void;
 //# sourceMappingURL=binder.d.ts.map

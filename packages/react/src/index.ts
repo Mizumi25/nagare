@@ -4,7 +4,9 @@ import {
   registerTemplate,
   registerPreset,
   bindAll,
+  bindSouls,
   unbindAll,
+  unbindSouls,
   getSoul,
   clearRegistry,
   destroySoul,
@@ -187,12 +189,12 @@ export function useSoul(fn: (soul: <T extends State = State>(name: string) => So
     const boundSoul = <T extends State = State>(name: string) => createSoulBuilder<T>(name, session)
 
     fn(boundSoul)
-    bindAll()
+    requestAnimationFrame(() => bindSouls(session.soulNames))
     observeMutations() // auto-rebind newly added/removed [data-soul] elements
 
     return () => {
       // cleanup DOM listeners
-      unbindAll()
+      unbindSouls(session.soulNames)
       // cleanup registry for souls registered in this session
       session.soulNames.forEach(name => destroySoul(name))
     }
@@ -244,4 +246,4 @@ export function preset(name: string, config: {
   return p
 }
 
-export { bindAll, unbindAll, getSoul, registerSoul, clearRegistry, destroySoul, observeMutations, stopObservingMutations }
+export { bindAll, unbindAll, bindSouls, unbindSouls, getSoul, registerSoul, clearRegistry, destroySoul, observeMutations, stopObservingMutations }

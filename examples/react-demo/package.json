@@ -9,9 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@nagare/react": "file:../../packages/react",
-    "@nagarejs/core": "file:../../packages/core",
-    "@nagarejs/react": "file:../../packages/react",
+    "@nagarejs/core": "^0.1.7",
+    "@nagarejs/react": "^0.1.7",
     "next": "16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4"

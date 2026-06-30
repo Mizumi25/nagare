@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { registerSoul, registerTemplate, registerPreset, bindAll, unbindAll, getSoul, clearRegistry, destroySoul, observeMutations, stopObservingMutations } from '../../core/dist/index.js';
+import { registerSoul, registerTemplate, registerPreset, bindAll, bindSouls, unbindAll, unbindSouls, getSoul, clearRegistry, destroySoul, observeMutations, stopObservingMutations } from '../../core/dist/index.js';
 import { parseCss } from '../../core/dist/parser/css.js';
 function buildLifecycle(config) {
     return {
@@ -94,11 +94,11 @@ export function useSoul(fn) {
         const session = { soulNames: [] };
         const boundSoul = (name) => createSoulBuilder(name, session);
         fn(boundSoul);
-        bindAll();
+        requestAnimationFrame(() => bindSouls(session.soulNames));
         observeMutations(); // auto-rebind newly added/removed [data-soul] elements
         return () => {
             // cleanup DOM listeners
-            unbindAll();
+            unbindSouls(session.soulNames);
             // cleanup registry for souls registered in this session
             session.soulNames.forEach(name => destroySoul(name));
         };
@@ -139,5 +139,5 @@ export function preset(name, config) {
     registerPreset(name, p);
     return p;
 }
-export { bindAll, unbindAll, getSoul, registerSoul, clearRegistry, destroySoul, observeMutations, stopObservingMutations };
+export { bindAll, unbindAll, bindSouls, unbindSouls, getSoul, registerSoul, clearRegistry, destroySoul, observeMutations, stopObservingMutations };
 //# sourceMappingURL=index.js.map

@@ -25,6 +25,8 @@ export function unbindSoul(el: HTMLElement) {
 }
 
 export function unbindAll() {
+  if (typeof document === 'undefined') return
+
   document.querySelectorAll('[data-soul]').forEach(el => {
     unbindSoul(el as HTMLElement)
   })
@@ -303,6 +305,8 @@ function bindElement(el: HTMLElement, name: string) {
 }
 
 export function bindSoul(name: string) {
+  if (typeof document === 'undefined') return
+
   const elements = document.querySelectorAll(`[data-soul="${name}"]`)
   if (elements.length === 0) {
     console.warn(`Nagare: no element found with data-soul="${name}"`)
@@ -312,6 +316,8 @@ export function bindSoul(name: string) {
 }
 
 export function bindAll() {
+  if (typeof document === 'undefined') return
+
   const elements = document.querySelectorAll('[data-soul]')
   elements.forEach(el => {
     const name = el.getAttribute('data-soul')
@@ -353,7 +359,9 @@ function handleRemovedNode(node: Node) {
  * automatically binds/unbinds them. Idempotent — calling it multiple
  * times has no extra effect while already observing.
  */
-export function observeMutations(root: Element | Document = document.body) {
+export function observeMutations(root?: Element | Document) {
+  if (typeof document === 'undefined') return
+  const target = root ?? document.body
   if (mutationObserver) return
   if (typeof MutationObserver === 'undefined') return // SSR-safe no-op
 
@@ -364,10 +372,26 @@ export function observeMutations(root: Element | Document = document.body) {
     })
   })
 
-  mutationObserver.observe(root, { childList: true, subtree: true })
+  mutationObserver.observe(target, { childList: true, subtree: true })
 }
 
 export function stopObservingMutations() {
   mutationObserver?.disconnect()
   mutationObserver = null
+}
+
+// ── Scoped bind/unbind — used by useSoul() to avoid cross-component collisions ──
+
+export function bindSouls(names: string[]) {
+  names.forEach(name => bindSoul(name))
+}
+
+export function unbindSouls(names: string[]) {
+  if (typeof document === 'undefined') return
+
+  names.forEach(name => {
+    document.querySelectorAll(`[data-soul="${name}"]`).forEach(el => {
+      unbindSoul(el as HTMLElement)
+    })
+  })
 }

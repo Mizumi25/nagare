@@ -1,7 +1,8 @@
 "use client"
+import Link from "next/link"
 
 import { useState } from "react"
-import { useSoul, soul } from "@nagare/react"
+import { useSoul, soul } from "@nagarejs/react"
 
 type IdleState = { idleCount: number }
 
@@ -212,6 +213,7 @@ export default function Page() {
   return (
     <div data-soul="page-root">
       <div data-soul="heading"></div>
+      <Link href="/about" className="text-blue-400 underline w-fit">go to about page →</Link>
 
       <section>
         <div data-soul="controls-row">

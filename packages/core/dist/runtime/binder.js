@@ -15,6 +15,8 @@ export function unbindSoul(el) {
     }
 }
 export function unbindAll() {
+    if (typeof document === 'undefined')
+        return;
     document.querySelectorAll('[data-soul]').forEach(el => {
         unbindSoul(el);
     });
@@ -279,6 +281,8 @@ function bindElement(el, name) {
     });
 }
 export function bindSoul(name) {
+    if (typeof document === 'undefined')
+        return;
     const elements = document.querySelectorAll(`[data-soul="${name}"]`);
     if (elements.length === 0) {
         console.warn(`Nagare: no element found with data-soul="${name}"`);
@@ -287,6 +291,8 @@ export function bindSoul(name) {
     elements.forEach(el => bindElement(el, name));
 }
 export function bindAll() {
+    if (typeof document === 'undefined')
+        return;
     const elements = document.querySelectorAll('[data-soul]');
     elements.forEach(el => {
         const name = el.getAttribute('data-soul');
@@ -325,7 +331,10 @@ function handleRemovedNode(node) {
  * automatically binds/unbinds them. Idempotent — calling it multiple
  * times has no extra effect while already observing.
  */
-export function observeMutations(root = document.body) {
+export function observeMutations(root) {
+    if (typeof document === 'undefined')
+        return;
+    const target = root ?? document.body;
     if (mutationObserver)
         return;
     if (typeof MutationObserver === 'undefined')
@@ -336,10 +345,23 @@ export function observeMutations(root = document.body) {
             mutation.removedNodes.forEach(handleRemovedNode);
         });
     });
-    mutationObserver.observe(root, { childList: true, subtree: true });
+    mutationObserver.observe(target, { childList: true, subtree: true });
 }
 export function stopObservingMutations() {
     mutationObserver?.disconnect();
     mutationObserver = null;
+}
+// ── Scoped bind/unbind — used by useSoul() to avoid cross-component collisions ──
+export function bindSouls(names) {
+    names.forEach(name => bindSoul(name));
+}
+export function unbindSouls(names) {
+    if (typeof document === 'undefined')
+        return;
+    names.forEach(name => {
+        document.querySelectorAll(`[data-soul="${name}"]`).forEach(el => {
+            unbindSoul(el);
+        });
+    });
 }
 //# sourceMappingURL=binder.js.map
