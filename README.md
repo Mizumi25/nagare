@@ -230,7 +230,7 @@ preset("bouncy", {
 
 soul("button")
   .click({
-    presets: ["bouncy"],                              // shorthand, merge by default
+    presets: ["bouncy"],                               // shorthand, merge by default
     presets: [{ name: "bouncy", mode: "override" }]    // or be explicit
   })
 ```
@@ -299,15 +299,48 @@ Nagare owns the behavior. Your JSX stays readable. ✦
 
 ---
 
+## Editor Intellisense ✦
+
+Nagare ships a TypeScript language service plugin that gives you autocompletion inside `tw` and `css` strings — in any editor that uses tsserver (VSCode, Neovim, WebStorm, Zed).
+
+**Install:**
+
+```bash
+npm install @nagarejs/ts-plugin --save-dev
+```
+
+**Add to your `tsconfig.json`:**
+
+```json
+{
+  "compilerOptions": {
+    "plugins": [{ "name": "@nagarejs/ts-plugin" }]
+  }
+}
+```
+
+That's it. Restart your editor's TS server and you'll get:
+
+- Tailwind class completions inside `tw: "..."`
+- CSS property completions inside `css: \`...\``
+- `@if` / `@else` keyword completions in css blocks
+- Hover docs on every suggestion
+
+The builder API (`.hover()`, `.click()`, `useSoul()` etc) and `js` blocks already have full intellisense out of the box via the shipped type definitions — no plugin needed for those.
+
+---
+
 ## Packages
 
 ```bash
-npm install @nagarejs/react    # React, Next.js, Remix, Astro, TanStack...
-npm install @nagarejs/core     # vanilla JS or build your own adapter
+npm install @nagarejs/react       # React, Next.js, Remix, Astro, TanStack...
+npm install @nagarejs/core        # vanilla JS or build your own adapter
+npm install @nagarejs/ts-plugin   # editor intellisense (dev dependency)
 ```
 
 - `@nagarejs/core` — the runtime engine
 - `@nagarejs/react` — the React adapter
+- `@nagarejs/ts-plugin` — TypeScript language service plugin
 
 ---
 
