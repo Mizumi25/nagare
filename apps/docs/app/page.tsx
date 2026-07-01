@@ -9,6 +9,7 @@ const SECTIONS = [
   { id: 'demo', label: 'Demo' },
   { id: 'behaviors', label: 'Behaviors' },
   { id: 'install', label: 'Install' },
+  { id: 'production', label: 'Production' },
   { id: 'source', label: 'Source' }
 ]
 
@@ -22,13 +23,11 @@ export default function Page() {
   const [activeSection, setActiveSection] = useState('hero')
   const [loading, setLoading] = useState(true)
 
-  // ── Loader: a soul that fades itself out onMount, then unmounts ──
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 900)
     return () => clearTimeout(t)
   }, [])
 
-  // ── Scroll-spy: every section is its own soul, watched with onVisible ──
   useSoul((soul) => {
     SECTIONS.forEach(({ id }) => {
       soul(`navwatch-${id}`)
@@ -43,7 +42,6 @@ export default function Page() {
     })
   })
 
-  // ── Hero entrance ──
   useSoul((soul) => {
     soul('hero-eyebrow')
       .default({ css: `opacity: 0; transform: translateY(12px)` })
@@ -74,7 +72,6 @@ export default function Page() {
       })
   })
 
-  // ── Generic scroll-reveal for every [data-reveal] section ──
   useSoul((soul) => {
     document.querySelectorAll('[data-reveal]').forEach((el, i) => {
       const name = `reveal-${i}`
@@ -89,7 +86,6 @@ export default function Page() {
     })
   })
 
-  // ── Demo: hover (lift + glow) ──
   useSoul((soul) => {
     soul('demo-hover')
       .default({
@@ -111,7 +107,6 @@ export default function Page() {
       })
   })
 
-  // ── Demo: click (toggle state, color flips via @if) ──
   useSoul((soul) => {
     soul('demo-click')
       .default({
@@ -136,7 +131,6 @@ export default function Page() {
       })
   })
 
-  // ── Demo: longpress (charge up) ──
   useSoul((soul) => {
     soul('demo-longpress')
       .default({ tw: 'demo-soul', state: { charged: false } })
@@ -151,7 +145,6 @@ export default function Page() {
       })
   })
 
-  // ── Demo: swipe (reports direction via params) ──
   useSoul((soul) => {
     soul('demo-swipe')
       .default({ tw: 'demo-soul', state: { dir: null as any } })
@@ -166,7 +159,6 @@ export default function Page() {
       })
   })
 
-  // ── Demo: onIdle (dims after 3s of inactivity) ──
   useSoul((soul) => {
     soul('demo-idle')
       .default({ tw: 'demo-soul' })
@@ -177,7 +169,6 @@ export default function Page() {
       })
   })
 
-  // ── Demo: drag (free movement within stage) ──
   useSoul((soul) => {
     soul('demo-drag')
       .default({ tw: 'demo-soul', css: `position: relative; cursor: grab` })
@@ -192,38 +183,31 @@ export default function Page() {
       })
   })
 
-
-  // ── Logo entrance animations ──
-useSoul((soul) => {
-
-  // Nav logo
-  soul('nav-logo')
-    .default({ 
-      css: `
-      vertical-align: middle
-      display: inline-block
-      height: 28px
-      width: 28px
-      opacity: 0; transform: translateX(-20px)`
-    })
-    .onMount({
-      delay: 50,
-      onStart: { 
-        css: `opacity: 1; transform: translateX(0px); transition: all 0.6s ease` 
-      }
-    })
-    .hover({
-      onStart: { 
-        css: `transform: rotate(15deg) scale(1.1); transition: transform 0.3s ease` 
-      },
-      onEnd: { 
-        css: `transform: rotate(0deg) scale(1); transition: transform 0.3s ease` 
-      }
-    })
-})
-
-  
-
+  useSoul((soul) => {
+    soul('nav-logo')
+      .default({ 
+        css: `
+        vertical-align: middle
+        display: inline-block
+        height: 28px
+        width: 28px
+        opacity: 0; transform: translateX(-20px)`
+      })
+      .onMount({
+        delay: 50,
+        onStart: { 
+          css: `opacity: 1; transform: translateX(0px); transition: all 0.6s ease` 
+        }
+      })
+      .hover({
+        onStart: { 
+          css: `transform: rotate(15deg) scale(1.1); transition: transform 0.3s ease` 
+        },
+        onEnd: { 
+          css: `transform: rotate(0deg) scale(1); transition: transform 0.3s ease` 
+        }
+      })
+  })
 
   return (
     <>
@@ -465,6 +449,10 @@ useSoul((soul) => {
                 <td>npm install @nagarejs/core &nbsp;// vanilla JS, custom adapters</td>
               </tr>
               <tr>
+                <th>Intellisense</th>
+                <td>npm install @nagarejs/ts-plugin --save-dev</td>
+              </tr>
+              <tr>
                 <th>Frameworks</th>
                 <td>Next.js, Remix, Astro, TanStack, Vite</td>
               </tr>
@@ -482,6 +470,45 @@ useSoul((soul) => {
               </tr>
             </tbody>
           </table>
+        </div>
+      </section>
+
+      {/* ───────────────────────── PRODUCTION ───────────────────────── */}
+      <section id="production" className="section">
+        <div className="section__inner">
+          <div className="eyebrow">
+            <span className="eyebrow__big">Production</span>
+            <span className="eyebrow__min">How Nagare behaves under stress</span>
+          </div>
+
+          <p className="about__statement" data-reveal style={{ marginBottom: '2rem' }}>
+            Nagare is a lifecycle detector, not an animation engine. It fires a lifecycle and applies styles — it doesn't interpolate, tween, or manage timing.
+          </p>
+
+          <table className="outline-table" data-reveal>
+            <tbody>
+              <tr>
+                <th>Element disappears</th>
+                <td>Silent no-op, no crash. Listener cleanup fix planned.</td>
+              </tr>
+              <tr>
+                <th>Rapid state updates</th>
+                <td>Holds up. State stays consistent, no race conditions.</td>
+              </tr>
+              <tr>
+                <th>prefers-reduced-motion</th>
+                <td>Not applicable — no animation engine. Handle in your js block.</td>
+              </tr>
+              <tr>
+                <th>Escape / interruption</th>
+                <td>Lifecycle completes. Handle interruption logic in your js block.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p className="about__body" data-reveal style={{ marginTop: '1.5rem', opacity: 0.6, fontSize: '0.9rem' }}>
+            The js block is intentionally no-ceiling — anything you can do in plain JavaScript you can do inside it. prefers-reduced-motion, escape handling, cancelling a fetch mid-flight — all of that lives in the js block by design, the same way React doesn't cancel a setState because the user hit escape.
+          </p>
         </div>
       </section>
 

@@ -330,6 +330,21 @@ The builder API (`.hover()`, `.click()`, `useSoul()` etc) and `js` blocks alread
 
 ---
 
+## Production considerations
+
+Nagare is a **lifecycle detector**, not an animation engine. It fires a lifecycle and applies styles — it doesn't interpolate, tween, or manage timing. That distinction matters for edge cases:
+
+| Scenario | What Nagare does | Who owns it |
+|---|---|---|
+| Element disappears mid-behavior | Silent no-op, no crash. Listener cleanup fix planned. | Nagare |
+| Rapid state updates | Holds up. State stays consistent, no race conditions. | Nagare |
+| `prefers-reduced-motion` | Not applicable — Nagare has no animation engine. Handle in your `js` block. | Developer |
+| Escape / interruption | Lifecycle completes. Handle interruption logic in your `js` block. | Developer |
+
+The `js` block is intentionally no-ceiling — anything you can do in plain JavaScript you can do inside it. `prefers-reduced-motion`, escape handling, cancelling a fetch mid-flight — all of that lives in the `js` block by design, the same way React doesn't cancel a `setState` because the user hit escape.
+
+---
+
 ## Packages
 
 ```bash
